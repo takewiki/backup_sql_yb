@@ -39,19 +39,29 @@ class SqlServer():
         :param time: 时间
         :return:
         """
-        day = date[:4] + date[5:7] + date[8:10]
-        sql = r"BACKUP DATABASE  {} TO DISK='{}\metadata_{}_{}.bak' WITH DIFFERENTIAL".format(
-            self.databaseName, dirPath, day, time)
-        self.con.autocommit(True)
-        self.cursor.execute(sql)
-        self.con.commit()
-        self.con.autocommit(False)
+        try:
 
-        # 填写本地文件的完整路径。如果未指定本地路径，则默认从示例程序所属项目对应本地路径中上传文件。
-        with open('{}\metadata_{}_{}.bak'.format(dirPath, day, time), 'rb') as fileobj:
-            self.bucket.put_object("backup_{}/".format(self.time3) + 'metadata_{}_{}.bak'.format(day, time), fileobj)
-            fileobj.close()
-            return {"message": "OK", "result": "backup_{}/".format(self.time3) + 'metadata_{}_{}.bak'.format(day, time)}
+            day = date[:4] + date[5:7] + date[8:10]
+            sql = r"BACKUP DATABASE  {} TO DISK='{}\metadata_{}_{}.bak' WITH DIFFERENTIAL".format(
+                self.databaseName, dirPath, day, time)
+            self.con.autocommit(True)
+            self.cursor.execute(sql)
+            self.con.commit()
+            self.con.autocommit(False)
+
+            # 填写本地文件的完整路径。如果未指定本地路径，则默认从示例程序所属项目对应本地路径中上传文件。
+            with open('{}\metadata_{}_{}.bak'.format(dirPath, day, time), 'rb') as fileobj:
+                res = self.bucket.put_object("{}/".format(self.time3) + 'metadata_{}_{}.bak'.format(day, time),
+                                             fileobj)
+                fileobj.close()
+                return {"status": True, "message": "OK",
+                        "result": [{
+                            "fileName": "{}/".format(self.time3) + 'metadata_{}_{}.bak'.format(day, time),
+                            "ETag": res.etag,
+                            "URL": res.resp.response.url,
+                        }]}
+        except Exception as e:
+            return {"status": False, "message": "ERROR", "result": str(e)}
 
     def sql_backupAll(self, dirPath, date, time):
         """
@@ -61,24 +71,34 @@ class SqlServer():
         :param time3: 时间 年-月-日
         :return:
         """
-        day = date[:4] + date[5:7] + date[8:10]
-        sql_master = 'use master'
-        sql = r"BACKUP DATABASE {} TO DISK='{}\metadata_{}_{}.bak'".format(self.databaseName, dirPath, day, time)
-        self.con.autocommit(True)
-        self.cursor.execute(sql_master)
-        self.cursor.execute(sql)
-        self.con.commit()
-        self.con.autocommit(False)
+        try:
+            day = date[:4] + date[5:7] + date[8:10]
+            sql_master = 'use master'
+            sql = r"BACKUP DATABASE {} TO DISK='{}\metadata_{}_{}.bak'".format(self.databaseName, dirPath, day, time)
+            self.con.autocommit(True)
+            self.cursor.execute(sql_master)
+            self.cursor.execute(sql)
+            self.con.commit()
+            self.con.autocommit(False)
 
-        with open('{}\metadata_{}_{}.bak'.format(dirPath, day, time), 'rb') as fileobj:
-            # Seek方法用于指定从第1000个字节位置开始读写。上传时会从您指定的第1000个字节位置开始上传，直到文件结束。
-            # fileobj.seek(1000, os.SEEK_SET)
-            # Tell方法用于返回当前位置。
-            # current = fileobj.tell()
-            # 填写Object完整路径。Object完整路径中不能包含Bucket名称。
-            self.bucket.put_object("backup_{}/".format(self.time3) + 'metadata_{}.bak'.format(day), fileobj)
-            fileobj.close()
-            return {"message": "OK", "res": "backup_{}/".format(self.time3) + 'metadata_{}.bak'.format(day)}
+            with open('{}\metadata_{}_{}.bak'.format(dirPath, day, time), 'rb') as fileobj:
+                # Seek方法用于指定从第1000个字节位置开始读写。上传时会从您指定的第1000个字节位置开始上传，直到文件结束。
+                # fileobj.seek(1000, os.SEEK_SET)
+                # Tell方法用于返回当前位置。
+                # current = fileobj.tell()
+                # 填写Object完整路径。Object完整路径中不能包含Bucket名称。
+                res = self.bucket.put_object("{}/".format(self.time3) + 'metadata_{}.bak'.format(day), fileobj)
+                fileobj.close()
+
+                return {"status": True, "message": "OK",
+                        "result": [{
+                            "fileName": "{}/".format(self.time3) + 'metadata_{}.bak'.format(day),
+                            "ETag": res.etag,
+                            "URL": res.resp.response.url,
+                        }]}
+                # return {"message": "OK", "res": "backup_{}/".format(self.time3) + 'metadata_{}.bak'.format(day)}
+        except Exception as e:
+            return {"status": False, "message": "ERROR", "result": str(e)}
 
     def sql_restoreAll(self, fileName):
         """
@@ -86,15 +106,19 @@ class SqlServer():
         :param fileName: 全量还原文件
         :return:
         """
-        sql_master = 'use master'
-        sql = r"RESTORE DATABASE {} FROM DISK = '{}' WITH  RECOVERY, REPLACE".format(
-            self.databaseName, fileName)
-        self.con.autocommit(True)
-        self.cursor.execute(sql_master)
-        self.cursor.execute(sql)
-        self.con.commit()
-        self.con.autocommit(False)
-        return {"message": "OK"}
+        try:
+            sql_master = 'use master'
+            sql = r"RESTORE DATABASE {} FROM DISK = '{}' WITH  RECOVERY, REPLACE".format(
+                self.databaseName, fileName)
+            self.con.autocommit(True)
+            self.cursor.execute(sql_master)
+            self.cursor.execute(sql)
+            self.con.commit()
+            self.con.autocommit(False)
+            return {"status": True, "message": "OK",
+                    "result": "数据库{}全量还原成功".format(self.databaseName)}
+        except Exception as e:
+            return {"status": False, "message": "ERROR", "result": str(e)}
 
     def sql_restoreDiff(self, fileNameAll, fileNameDiff, overWrite=True):
         """
@@ -104,24 +128,28 @@ class SqlServer():
         :param overWrite: 是否覆盖
         :return:
         """
-        sql_master = 'use master'
+        try:
+            sql_master = 'use master'
 
-        sql_total = r"RESTORE DATABASE {} FROM DISK = '{}' WITH  NORECOVERY, REPLACE".format(
-            self.databaseName, fileNameAll)
-        if overWrite:
-            sql_add = r"RESTORE DATABASE {} FROM DISK = '{}' WITH RECOVERY".format(
-                self.databaseName, fileNameDiff)
-        else:
-            sql_add = r"RESTORE DATABASE {} FROM DISK = '{}' WITH NORECOVERY".format(
-                self.databaseName, fileNameDiff, )
-        self.con.autocommit(True)
-        self.cursor.execute(sql_master)
-        self.cursor.execute(sql_total)
-        self.cursor.execute(sql_add)
-        self.con.commit()
-        self.con.autocommit(False)
-        # os.remove('{}'.format(fileNameDiff))
-        return {"message": "OK"}
+            sql_total = r"RESTORE DATABASE {} FROM DISK = '{}' WITH  NORECOVERY, REPLACE".format(
+                self.databaseName, fileNameAll)
+            if overWrite:
+                sql_add = r"RESTORE DATABASE {} FROM DISK = '{}' WITH RECOVERY".format(
+                    self.databaseName, fileNameDiff)
+            else:
+                sql_add = r"RESTORE DATABASE {} FROM DISK = '{}' WITH NORECOVERY".format(
+                    self.databaseName, fileNameDiff, )
+            self.con.autocommit(True)
+            self.cursor.execute(sql_master)
+            self.cursor.execute(sql_total)
+            self.cursor.execute(sql_add)
+            self.con.commit()
+            self.con.autocommit(False)
+            # os.remove('{}'.format(fileNameDiff))
+            return {"status": True, "message": "OK",
+                    "result": "数据库{}增量还原成功".format(self.databaseName)}
+        except Exception as e:
+            return {"status": False, "message": "ERROR", "result": str(e)}
 
     def load_fileName(self, fileName, load_path):
         """
@@ -130,5 +158,8 @@ class SqlServer():
         :param load_path: 下载到本地路劲
         :return:
         """
-        res = self.bucket.get_object_to_file(fileName, load_path)  # 从 oss2 下载文件
-        return {"message": "OK", 'result': res}
+        try:
+            res = self.bucket.get_object_to_file(fileName, load_path)  # 从 oss2 下载文件
+            return {"message": "OK", 'result': res.headers}
+        except Exception as e:
+            return {"status": False, "message": "ERROR", "result": str(e)}

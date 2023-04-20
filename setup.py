@@ -1,9 +1,7 @@
-
-
 from setuptools import setup, find_packages
 
 setup(name='backup',
-      version='1.0.5',
+      version='1.0.6',
       description='test for zip',
       author='yb',
       # package_data={'': ['config.ini']},
