@@ -1,0 +1,3 @@
+2023-04-17 13:41:48   E:\项目文件\凯润\databse_backup\backup\config.ini文件存在
+2023-04-17 13:41:48   E:\项目文件\凯润\databse_backup\backup\config.ini文件存在
+2023-04-17 13:41:48 备份目录E:\项目文件\凯润\databse_backup\backup\database_backup存在
