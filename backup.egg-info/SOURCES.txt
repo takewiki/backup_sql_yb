@@ -1,6 +1,5 @@
 setup.py
 backup/__init__.py
-backup/config.py
 backup/main.py
 backup.egg-info/PKG-INFO
 backup.egg-info/SOURCES.txt

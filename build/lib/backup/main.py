@@ -1,5 +1,4 @@
 import pymssql
-import os
 import datetime
 import oss2
 
@@ -111,7 +110,7 @@ class SqlServer():
             self.databaseName, fileNameAll)
         if overWrite:
             sql_add = r"RESTORE DATABASE {} FROM DISK = '{}' WITH RECOVERY".format(
-                self.databaseName, fileNameDiff )
+                self.databaseName, fileNameDiff)
         else:
             sql_add = r"RESTORE DATABASE {} FROM DISK = '{}' WITH NORECOVERY".format(
                 self.databaseName, fileNameDiff, )
@@ -133,15 +132,3 @@ class SqlServer():
         """
         res = self.bucket.get_object_to_file(fileName, load_path)  # 从 oss2 下载文件
         return {"message": "OK", 'result': res}
-
-
-# if __name__ == '__main__':
-#     b = SqlServer(host='139.224.201.131', userName='sa', port=1433, password='rds@2023', databaseName='metadata',
-#                   ossKey='LTAI5tC2kEHNcZkHbPg43C2v', ossSecret='Fvb1mtuoEPLe1IeDpgLwQbSTuAMmhL',
-#                   ossEntry='https://oss-cn-shanghai.aliyuncs.com', bucketName='kairun-test')
-#     b.sql_backupAll(dirPath=r'D:\py_pro\backup', date='2023-04-18', time='1037')
-#     b.sql_backupDiff(dirPath='D:\py_pro\diff_backup', date='2023-04-18', time='1037')
-#     b.sql_restoreAll(fileName='E:\项目文件\凯润\metadata_20230418_1102.bak')
-#     b.sql_restoreDiff(fileNameAll=r'D:\py_pro\backup\metadata_20230418_1102.bak',
-#                       fileNameDiff='D:\py_pro\diff_backup\metadata_20230418_1102.bak', overWrite=True)
-#     b.load_fileName('backup_2023-04-18/backup_20230418_095635', r'E:\项目文件\凯润\backup_20230418_095635.bak')
