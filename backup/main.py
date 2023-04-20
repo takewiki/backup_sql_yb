@@ -23,11 +23,7 @@ class SqlServer():
                                    port=self.database_port,
                                    password=self.database_password, charset='utf8')
         self.cursor = self.con.cursor(as_dict=True)
-        # self.auth = oss2.Auth('LTAI5tC2kEHNcZkHbPg43C2v', 'Fvb1mtuoEPLe1IeDpgLwQbSTuAMmhL')
         self.auth = oss2.Auth(ossKey, ossSecret)
-        # yourEndpoint填写Bucket所在地域对应的Endpoint。以华东1（杭州）为例，Endpoint填写为https://oss-cn-hangzhou.aliyuncs.com。
-        # 填写Bucket名称。
-        # self.bucket = oss2.Bucket(self.auth, 'https://oss-cn-shanghai.aliyuncs.com', 'kairun-test')
         self.bucket = oss2.Bucket(self.auth, ossEntry, bucketName)
         self.folder_name = 'backup_{}'.format(self.time3)
 
@@ -82,11 +78,6 @@ class SqlServer():
             self.con.autocommit(False)
 
             with open('{}\metadata_{}_{}.bak'.format(dirPath, day, time), 'rb') as fileobj:
-                # Seek方法用于指定从第1000个字节位置开始读写。上传时会从您指定的第1000个字节位置开始上传，直到文件结束。
-                # fileobj.seek(1000, os.SEEK_SET)
-                # Tell方法用于返回当前位置。
-                # current = fileobj.tell()
-                # 填写Object完整路径。Object完整路径中不能包含Bucket名称。
                 res = self.bucket.put_object("{}/".format(self.time3) + 'metadata_{}.bak'.format(day), fileobj)
                 fileobj.close()
 
