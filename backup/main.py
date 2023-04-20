@@ -10,10 +10,6 @@ class SqlServer():
         self.time2 = self.time1.split('.')[0]
         self.time3 = self.time2.split(' ')[0]
         self.timestamp = datetime.datetime.strftime(datetime.datetime.now(), '%Y%m%d')
-        # self.current_path = os.getcwd()
-        # self.current_config_path = self.current_path + '\\' + 'config.ini'
-        # self.current_log_path = self.current_path + '\\' + 'log.txt'
-        # self.current_database_backup_path = self.current_path + '\\' + 'database_backup'
         self.database_host = host  # 得到hose
         self.database_port = port  # 得到端口号
         self.database_user = userName  # 得到登录数据的用户名
