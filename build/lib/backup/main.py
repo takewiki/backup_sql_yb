@@ -1,19 +1,28 @@
 import pymssql
 import datetime
 import oss2
+import os
 
 
 class SqlServer():
 
     def __init__(self, host, port, userName, password, databaseName, ossKey, ossSecret, ossEntry, bucketName):
+        """
+        初始化
+        :param host: 数据库地址
+        :param port: 数据库端口号
+        :param userName: 数据库用户名
+        :param password: 数据库密码
+        :param databaseName: 数据库名称
+        :param ossKey: 阿里云KEY
+        :param ossSecret: 阿里云Secret
+        :param ossEntry: 阿里云入库
+        :param bucketName: 阿里云仓储
+        """
         self.time1 = str(datetime.datetime.now())
         self.time2 = self.time1.split('.')[0]
         self.time3 = self.time2.split(' ')[0]
         self.timestamp = datetime.datetime.strftime(datetime.datetime.now(), '%Y%m%d')
-        # self.current_path = os.getcwd()
-        # self.current_config_path = self.current_path + '\\' + 'config.ini'
-        # self.current_log_path = self.current_path + '\\' + 'log.txt'
-        # self.current_database_backup_path = self.current_path + '\\' + 'database_backup'
         self.database_host = host  # 得到hose
         self.database_port = port  # 得到端口号
         self.database_user = userName  # 得到登录数据的用户名
@@ -23,11 +32,7 @@ class SqlServer():
                                    port=self.database_port,
                                    password=self.database_password, charset='utf8')
         self.cursor = self.con.cursor(as_dict=True)
-        # self.auth = oss2.Auth('LTAI5tC2kEHNcZkHbPg43C2v', 'Fvb1mtuoEPLe1IeDpgLwQbSTuAMmhL')
         self.auth = oss2.Auth(ossKey, ossSecret)
-        # yourEndpoint填写Bucket所在地域对应的Endpoint。以华东1（杭州）为例，Endpoint填写为https://oss-cn-hangzhou.aliyuncs.com。
-        # 填写Bucket名称。
-        # self.bucket = oss2.Bucket(self.auth, 'https://oss-cn-shanghai.aliyuncs.com', 'kairun-test')
         self.bucket = oss2.Bucket(self.auth, ossEntry, bucketName)
         self.folder_name = 'backup_{}'.format(self.time3)
 
@@ -82,11 +87,6 @@ class SqlServer():
             self.con.autocommit(False)
 
             with open('{}\metadata_{}_{}.bak'.format(dirPath, day, time), 'rb') as fileobj:
-                # Seek方法用于指定从第1000个字节位置开始读写。上传时会从您指定的第1000个字节位置开始上传，直到文件结束。
-                # fileobj.seek(1000, os.SEEK_SET)
-                # Tell方法用于返回当前位置。
-                # current = fileobj.tell()
-                # 填写Object完整路径。Object完整路径中不能包含Bucket名称。
                 res = self.bucket.put_object("{}/".format(self.time3) + 'metadata_{}.bak'.format(day), fileobj)
                 fileobj.close()
 
@@ -100,13 +100,15 @@ class SqlServer():
         except Exception as e:
             return {"status": False, "message": "ERROR", "result": str(e)}
 
-    def sql_restoreAll(self, fileName):
+    def sql_restoreAll(self, oss_fileName, fileName):
         """
         全量还原
+        :param oss_fileName: oss文件路劲
         :param fileName: 全量还原文件
         :return:
         """
         try:
+            self.load_fileName(oss_fileName, fileName)
             sql_master = 'use master'
             sql = r"RESTORE DATABASE {} FROM DISK = '{}' WITH  RECOVERY, REPLACE".format(
                 self.databaseName, fileName)
@@ -120,15 +122,19 @@ class SqlServer():
         except Exception as e:
             return {"status": False, "message": "ERROR", "result": str(e)}
 
-    def sql_restoreDiff(self, fileNameAll, fileNameDiff, overWrite=True):
+    def sql_restoreDiff(self, oss_fileName, fileNameAll, fileNameDiff, overWrite=True):
         """
         增量还原
+        :param oss_fileName: oss文件路劲
         :param file: 全量还原bak文件
         :param fileName: 增量还原bak文件
         :param overWrite: 是否覆盖
         :return:
         """
+
         try:
+            self.load_fileName(oss_fileName, fileNameAll)
+            self.load_fileName(oss_fileName, fileNameDiff)
             sql_master = 'use master'
 
             sql_total = r"RESTORE DATABASE {} FROM DISK = '{}' WITH  NORECOVERY, REPLACE".format(
@@ -138,7 +144,7 @@ class SqlServer():
                     self.databaseName, fileNameDiff)
             else:
                 sql_add = r"RESTORE DATABASE {} FROM DISK = '{}' WITH NORECOVERY".format(
-                    self.databaseName, fileNameDiff, )
+                    self.databaseName, fileNameDiff)
             self.con.autocommit(True)
             self.cursor.execute(sql_master)
             self.cursor.execute(sql_total)
@@ -158,6 +164,13 @@ class SqlServer():
         :param load_path: 下载到本地路劲
         :return:
         """
+        dir_path = ''
+        path = load_path.split('\\')
+        for i in path[:-1]:
+            dir_path += i + '\\'
+        print(dir_path)
+        if not os.path.exists(dir_path):
+            os.mkdir(dir_path)
         try:
             res = self.bucket.get_object_to_file(fileName, load_path)  # 从 oss2 下载文件
             return {"message": "OK", 'result': res.headers}

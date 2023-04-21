@@ -1,11 +1,24 @@
 import pymssql
 import datetime
 import oss2
+import os
 
 
 class SqlServer():
 
     def __init__(self, host, port, userName, password, databaseName, ossKey, ossSecret, ossEntry, bucketName):
+        """
+        初始化
+        :param host: 数据库地址
+        :param port: 数据库端口号
+        :param userName: 数据库用户名
+        :param password: 数据库密码
+        :param databaseName: 数据库名称
+        :param ossKey: 阿里云KEY
+        :param ossSecret: 阿里云Secret
+        :param ossEntry: 阿里云入库
+        :param bucketName: 阿里云仓储
+        """
         self.time1 = str(datetime.datetime.now())
         self.time2 = self.time1.split('.')[0]
         self.time3 = self.time2.split(' ')[0]
@@ -31,6 +44,10 @@ class SqlServer():
         :param time: 时间
         :return:
         """
+
+        if not os.path.exists(dirPath):
+            os.makedirs(dirPath)
+
         try:
 
             day = date[:4] + date[5:7] + date[8:10]
@@ -43,12 +60,12 @@ class SqlServer():
 
             # 填写本地文件的完整路径。如果未指定本地路径，则默认从示例程序所属项目对应本地路径中上传文件。
             with open('{}\metadata_{}_{}.bak'.format(dirPath, day, time), 'rb') as fileobj:
-                res = self.bucket.put_object("{}/".format(self.time3) + 'metadata_{}_{}.bak'.format(day, time),
+                res = self.bucket.put_object("{}/".format(day) + 'metadata_{}_{}.bak'.format(day, time),
                                              fileobj)
                 fileobj.close()
                 return {"status": True, "message": "OK",
                         "result": [{
-                            "fileName": "{}/".format(self.time3) + 'metadata_{}_{}.bak'.format(day, time),
+                            "fileName": "{}/".format(day) + 'metadata_{}_{}.bak'.format(day, time),
                             "ETag": res.etag,
                             "URL": res.resp.response.url,
                         }]}
@@ -58,11 +75,15 @@ class SqlServer():
     def sql_backupAll(self, dirPath, date, time):
         """
         全量备份-备份到数据库本地服务器
-        :param databaseName: 数据库名称
+        :param dirPath: 备份文件路劲
         :param path: 备份文件路劲
         :param time3: 时间 年-月-日
         :return:
         """
+
+        if not os.path.exists(dirPath):
+            os.makedirs(dirPath)
+
         try:
             day = date[:4] + date[5:7] + date[8:10]
             sql_master = 'use master'
@@ -74,12 +95,12 @@ class SqlServer():
             self.con.autocommit(False)
 
             with open('{}\metadata_{}_{}.bak'.format(dirPath, day, time), 'rb') as fileobj:
-                res = self.bucket.put_object("{}/".format(self.time3) + 'metadata_{}.bak'.format(day), fileobj)
+                res = self.bucket.put_object("{}/".format(day) + 'metadata_{}.bak'.format(day), fileobj)
                 fileobj.close()
 
                 return {"status": True, "message": "OK",
                         "result": [{
-                            "fileName": "{}/".format(self.time3) + 'metadata_{}.bak'.format(day),
+                            "fileName": "{}/".format(day) + 'metadata_{}.bak'.format(day),
                             "ETag": res.etag,
                             "URL": res.resp.response.url,
                         }]}
@@ -87,13 +108,15 @@ class SqlServer():
         except Exception as e:
             return {"status": False, "message": "ERROR", "result": str(e)}
 
-    def sql_restoreAll(self, fileName):
+    def sql_restoreAll(self, oss_fileName, fileName):
         """
         全量还原
+        :param oss_fileName: oss文件路劲
         :param fileName: 全量还原文件
         :return:
         """
         try:
+            self.load_fileName(oss_fileName, fileName)
             sql_master = 'use master'
             sql = r"RESTORE DATABASE {} FROM DISK = '{}' WITH  RECOVERY, REPLACE".format(
                 self.databaseName, fileName)
@@ -107,15 +130,19 @@ class SqlServer():
         except Exception as e:
             return {"status": False, "message": "ERROR", "result": str(e)}
 
-    def sql_restoreDiff(self, fileNameAll, fileNameDiff, overWrite=True):
+    def sql_restoreDiff(self, oss_fileName, fileNameAll, fileNameDiff, overWrite=True):
         """
         增量还原
+        :param oss_fileName: oss文件路劲
         :param file: 全量还原bak文件
         :param fileName: 增量还原bak文件
         :param overWrite: 是否覆盖
         :return:
         """
+
         try:
+            # self.load_fileName(oss_fileName, fileNameAll)
+            self.load_fileName(oss_fileName, fileNameDiff)
             sql_master = 'use master'
 
             sql_total = r"RESTORE DATABASE {} FROM DISK = '{}' WITH  NORECOVERY, REPLACE".format(
@@ -125,7 +152,7 @@ class SqlServer():
                     self.databaseName, fileNameDiff)
             else:
                 sql_add = r"RESTORE DATABASE {} FROM DISK = '{}' WITH NORECOVERY".format(
-                    self.databaseName, fileNameDiff, )
+                    self.databaseName, fileNameDiff)
             self.con.autocommit(True)
             self.cursor.execute(sql_master)
             self.cursor.execute(sql_total)
@@ -145,6 +172,13 @@ class SqlServer():
         :param load_path: 下载到本地路劲
         :return:
         """
+        dir_path = ''
+        path = load_path.split('\\')
+        for i in path[:-1]:
+            dir_path += i + '\\'
+        print(dir_path)
+        if not os.path.exists(dir_path):
+            os.mkdir(dir_path)
         try:
             res = self.bucket.get_object_to_file(fileName, load_path)  # 从 oss2 下载文件
             return {"message": "OK", 'result': res.headers}
